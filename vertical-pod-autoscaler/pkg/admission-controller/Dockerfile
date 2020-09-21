@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM golang as builder
+COPY . /go/src/
+WORKDIR /go/src/admission-controller
+RUN make
+
 FROM gcr.io/distroless/static:latest
-MAINTAINER Tomasz Kulczynski "tkulczynski@google.com"
-ARG ARCH
-copy admission-controller-$ARCH /admission-controller
+copy --from builder /go/src/admission-controller/admission-controller /admission-controller
 
 ENTRYPOINT ["/admission-controller"]
 CMD ["--v=4", "--stderrthreshold=info"]
