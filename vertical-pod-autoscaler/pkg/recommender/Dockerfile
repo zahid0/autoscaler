@@ -13,12 +13,12 @@
 # limitations under the License.
 
 FROM golang AS builder
-COPY . /go/src/recommender
-WORKDIR /go/src/recommender
+COPY . /go/src/vertical-pod-autoscaler
+WORKDIR /go/src/vertical-pod-autoscaler/pkg/recommender
 RUN make
 
 FROM gcr.io/distroless/static:latest
-COPY --from=builder /go/src/recommender/recommender /recommender
+COPY --from=builder /go/src/vertical-pod-autoscaler/pkg/recommender/recommender /recommender
 
 ENTRYPOINT ["/recommender"]
 CMD ["--v=4", "--stderrthreshold=info", "--prometheus-address=http://prometheus.monitoring.svc"]

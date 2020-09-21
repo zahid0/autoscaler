@@ -18,7 +18,7 @@ WORKDIR /go/src/vertical-pod-autoscaler/pkg/admission-controller
 RUN make
 
 FROM gcr.io/distroless/static:latest
-COPY --from=builder /go/src/admission-controller/admission-controller /admission-controller
+COPY --from=builder /go/src/vertical-pod-autoscaler/pkg/admission-controller/admission-controller /admission-controller
 
 ENTRYPOINT ["/admission-controller"]
 CMD ["--v=4", "--stderrthreshold=info"]

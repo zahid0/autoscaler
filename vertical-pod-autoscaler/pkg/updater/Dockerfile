@@ -13,13 +13,13 @@
 # limitations under the License.
 
 FROM golang AS builder
-COPY . /go/src/updater
-WORKDIR /go/src/updater
+COPY . /go/src/vertical-pod-autoscaler
+WORKDIR /go/src/vertical-pod-autoscaler/pkg/updater
 RUN make
 
 FROM gcr.io/distroless/static:latest
 
-COPY --from=builder /go/src/updater/updater /updater
+COPY --from=builder /go/src/vertical-pod-autoscaler/pkg/updater/updater /updater
 
 ENTRYPOINT ["/updater"]
 CMD ["--v=4", "--stderrthreshold=info"]
