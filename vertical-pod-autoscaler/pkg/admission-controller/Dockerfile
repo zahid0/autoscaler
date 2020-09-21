@@ -13,8 +13,8 @@
 # limitations under the License.
 
 FROM golang AS builder
-COPY . /go/src/admission-controller
-WORKDIR /go/src/admission-controller
+COPY . /go/src/vertical-pod-autoscaler
+WORKDIR /go/src/vertical-pod-autoscaler/pkg/admission-controller
 RUN make
 
 FROM gcr.io/distroless/static:latest
