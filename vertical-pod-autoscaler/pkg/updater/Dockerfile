@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM golang AS builder
+COPY . /go/src/updater
+WORKDIR /go/src/updater
+RUN make
 
 FROM gcr.io/distroless/static:latest
-MAINTAINER Marcin Wielgus "mwielgus@google.com"
 
-ARG ARCH
-COPY updater-$ARCH /updater
+COPY --from=builder /go/src/updater/updater /updater
 
 ENTRYPOINT ["/updater"]
 CMD ["--v=4", "--stderrthreshold=info"]

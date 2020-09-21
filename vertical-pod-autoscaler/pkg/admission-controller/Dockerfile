@@ -13,7 +13,7 @@
 # limitations under the License.
 
 FROM golang AS builder
-COPY . /go/src/
+COPY . /go/src/admission-controller
 WORKDIR /go/src/admission-controller
 RUN make
 
