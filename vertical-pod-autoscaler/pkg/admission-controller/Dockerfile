@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang as builder
+FROM golang AS builder
 COPY . /go/src/
 WORKDIR /go/src/admission-controller
 RUN make
 
 FROM gcr.io/distroless/static:latest
-copy --from builder /go/src/admission-controller/admission-controller /admission-controller
+COPY --from=builder /go/src/admission-controller/admission-controller /admission-controller
 
 ENTRYPOINT ["/admission-controller"]
 CMD ["--v=4", "--stderrthreshold=info"]
