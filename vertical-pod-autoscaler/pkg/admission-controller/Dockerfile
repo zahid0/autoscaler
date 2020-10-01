@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM golang AS builder
+COPY . /go/src/vertical-pod-autoscaler
+WORKDIR /go/src/vertical-pod-autoscaler/pkg/admission-controller
+RUN make
+
 FROM gcr.io/distroless/static:latest
-MAINTAINER Tomasz Kulczynski "tkulczynski@google.com"
-ARG ARCH
-copy admission-controller-$ARCH /admission-controller
+COPY --from=builder /go/src/vertical-pod-autoscaler/pkg/admission-controller/admission-controller /admission-controller
 
 ENTRYPOINT ["/admission-controller"]
 CMD ["--v=4", "--stderrthreshold=info"]

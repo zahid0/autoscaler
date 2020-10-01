@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM gcr.io/distroless/static:latest
-MAINTAINER Krzysztof Grygiel "kgrygiel@google.com"
+FROM golang AS builder
+COPY . /go/src/vertical-pod-autoscaler
+WORKDIR /go/src/vertical-pod-autoscaler/pkg/recommender
+RUN make
 
-ARG ARCH
-COPY recommender-$ARCH /recommender
+FROM gcr.io/distroless/static:latest
+COPY --from=builder /go/src/vertical-pod-autoscaler/pkg/recommender/recommender /recommender
 
 ENTRYPOINT ["/recommender"]
 CMD ["--v=4", "--stderrthreshold=info", "--prometheus-address=http://prometheus.monitoring.svc"]

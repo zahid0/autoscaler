@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM golang AS builder
+COPY . /go/src/vertical-pod-autoscaler
+WORKDIR /go/src/vertical-pod-autoscaler/pkg/updater
+RUN make
 
 FROM gcr.io/distroless/static:latest
-MAINTAINER Marcin Wielgus "mwielgus@google.com"
 
-ARG ARCH
-COPY updater-$ARCH /updater
+COPY --from=builder /go/src/vertical-pod-autoscaler/pkg/updater/updater /updater
 
 ENTRYPOINT ["/updater"]
 CMD ["--v=4", "--stderrthreshold=info"]
