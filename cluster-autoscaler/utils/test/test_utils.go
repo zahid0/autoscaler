@@ -41,6 +41,7 @@ func BuildTestPod(name string, cpu int64, mem int64) *apiv1.Pod {
 			Name:        name,
 			SelfLink:    fmt.Sprintf("/api/v1/namespaces/default/pods/%s", name),
 			Annotations: map[string]string{},
+			OwnerReferences: GenerateOwnerReferences("rs", "ReplicaSet", "extensions/v1beta1", ""),
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
