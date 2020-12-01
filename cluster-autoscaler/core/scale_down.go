@@ -1375,6 +1375,7 @@ func isolatePodsFromController(pods []*apiv1.Pod, client kube_client.Interface, 
   for _, pod := range pods {
     isolatePod(pod, client, recorder)
   }
+  //TODO wait some time for replacement pods to come up
 }
 
 func isolatePod(podToIsolate *apiv1.Pod, client kube_client.Interface, recorder kube_record.EventRecorder) (err error) {
@@ -1385,7 +1386,7 @@ func isolatePod(podToIsolate *apiv1.Pod, client kube_client.Interface, recorder 
   recorder.Eventf(podToIsolate apiv1.EventTypeNormal, "ScaleDown", "isolating pod for node scale down")
 	var updateError error
   pod, err := client.CoreV1().Pods().Get(context.TODO(), podToIsolate.Name, metav1.GetOptions{})
-  // change label
+  //TODO change label
   updateError = client.CoreV1().Pods(podToIsolate.Namespace).Update(ctx.TODO(), pod, metav1.UpdateOptions{})
   if updateError == nil || kube_errors.IsNotFound(lastError) {
     return
