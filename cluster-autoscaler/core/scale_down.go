@@ -39,6 +39,7 @@ import (
 	schedulerframework "k8s.io/kubernetes/pkg/scheduler/framework"
 
 	apiv1 "k8s.io/api/core/v1"
+  appsv1 "k8s.io/api/apps/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
 	kube_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1134,7 +1135,7 @@ func (sd *ScaleDown) deleteNode(node *apiv1.Node, pods []*apiv1.Pod, daemonSetPo
 	sd.context.Recorder.Eventf(node, apiv1.EventTypeNormal, "ScaleDown", "marked the node as toBeDeleted/unschedulable")
 
   // Isolate pods from their controller and wait for the impacted controllers to have desired capacity.
-  err := isolatePodsFromController(pods, sd.context.ClientSet, sd.context.Recorder)
+  err := isolatePodsFromController(node, pods, sd.context.ClientSet, sd.context.Recorder)
 	// attempt drain
 	evictionResults, err := drainNode(node, pods, daemonSetPods, sd.context.ClientSet, sd.context.Recorder, sd.context.MaxGracefulTerminationSec, MaxPodEvictionTime, EvictionRetryTime, PodEvictionHeadroom)
 	if err != nil {
@@ -1371,25 +1372,55 @@ func filterOutMasters(nodeInfos []*schedulerframework.NodeInfo) []*apiv1.Node {
 }
 
 // Isolate pods pods from its controllers, wait up to MaxWaitTime to controllers to be ready
-func isolatePodsFromController(pods []*apiv1.Pod, client kube_client.Interface, recorder kube_record.EventRecorder) (err error) {
+func isolatePodsFromController(node *apiv1.Node, pods []*apiv1.Pod, client kube_client.Interface, recorder kube_record.EventRecorder) (err error) {
+  var replicaSets []*appsv1.ReplicaSet
   for _, pod := range pods {
+    controllerRef := metav1.GetControllerOf(pod)
+    if controllerRef == nil || controllerRef.Kind != "ReplicaSet" {
+      continue
+    }
     isolatePod(pod, client, recorder)
+    replicaSets = append(replicaSets, controllerRef)
   }
-  //TODO wait some time for replacement pods to come up
+  waitForReplicastToBeReady(replicaSets, 300)
 }
 
 func isolatePod(podToIsolate *apiv1.Pod, client kube_client.Interface, recorder kube_record.EventRecorder) (err error) {
-  controllerRef := metav1.GetControllerOf(podToIsolate)
-  if controllerRef == nil || controllerRef.Kind != "ReplicaSet" {
-    return
-  }
   recorder.Eventf(podToIsolate apiv1.EventTypeNormal, "ScaleDown", "isolating pod for node scale down")
 	var updateError error
   pod, err := client.CoreV1().Pods().Get(context.TODO(), podToIsolate.Name, metav1.GetOptions{})
-  //TODO change label
-  updateError = client.CoreV1().Pods(podToIsolate.Namespace).Update(ctx.TODO(), pod, metav1.UpdateOptions{})
+	pod.ObjectMeta.Labels["pod-template-hash"] = "scale-down"
+  _, updateError = client.CoreV1().Pods(podToIsolate.Namespace).Update(ctx.TODO(), pod, metav1.UpdateOptions{})
   if updateError == nil || kube_errors.IsNotFound(lastError) {
     return
   }
-	return Err: fmt.Errorf("failed to isolate pod %s/%s (last error: %v)", podToIsolate.Namespace, podToIsolate.Name, updateError)}
+  klog.Warningf("failed to isolate pod %s/%s (error: %v)", podToIsolate.Namespace, podToIsolate.Name, updateError)
+	return updateError
+}
+
+func waitForReplicastToBeReady(replicaSets []*appsv1.ReplicaSet, timeout time.Duration) (err error) {
+  err := wait.Poll(5*time.Second, timeout, func() (bool, error) {
+    klog.V(5).Infof("Waiting for ReplicaSets to be ready")
+    for _, r := range replicaSets {
+      selector, err = metav1.LabelSelectorAsSelector(r.Spec.Selector)
+      list, err := client.CoreV1().Pods(r.namespace).List(ctx.Background(), metav1.ListOptions{
+        LabelSelector: selector,
+      })
+      for _, pod range list.Items {
+        if !isPodReady(&pod) {
+          return false, nil
+        }
+      }
+    }
+    return true, nil
+  })
+}
+
+func isPodReady(pod *corev1.Pod) () {
+  for _, c := range pod.Status.Conditions {
+    if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+      return true
+    }
+  }
+  return false
 }
