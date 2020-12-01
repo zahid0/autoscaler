@@ -1133,8 +1133,8 @@ func (sd *ScaleDown) deleteNode(node *apiv1.Node, pods []*apiv1.Pod, daemonSetPo
 
 	sd.context.Recorder.Eventf(node, apiv1.EventTypeNormal, "ScaleDown", "marked the node as toBeDeleted/unschedulable")
 
-  // label change on all the pods which are managed by replicaset
-  // wait for the impacted replicasets to have desired capacity. Just like waitForDelayDeletion 
+  // Isolate pods from their controller and wait for the impacted controllers to have desired capacity.
+  err := isolatePodsFromController(pods)
 	// attempt drain
 	evictionResults, err := drainNode(node, pods, daemonSetPods, sd.context.ClientSet, sd.context.Recorder, sd.context.MaxGracefulTerminationSec, MaxPodEvictionTime, EvictionRetryTime, PodEvictionHeadroom)
 	if err != nil {
@@ -1203,12 +1203,6 @@ func drainNode(node *apiv1.Node, pods []*apiv1.Pod, daemonSetPods []*apiv1.Pod, 
 	retryUntil := time.Now().Add(maxPodEvictionTime)
 	confirmations := make(chan status.PodEvictionResult, len(pods))
 	daemonSetConfirmations := make(chan status.PodEvictionResult, len(daemonSetPods))
-	for _, pod := range pods {
-		controllerRef := metav1.GetControllerOf(pod)
-		if controllerRef != nil && controllerRef.Kind == "ReplicaSet" {
-      fmt.Printf("Lemme iterate %v \n", refKind)
-		}
-  }
 	for _, pod := range pods {
 		evictionResults[pod.Name] = status.PodEvictionResult{Pod: pod, TimedOut: true, Err: nil}
 		go func(podToEvict *apiv1.Pod) {
@@ -1374,4 +1368,14 @@ func filterOutMasters(nodeInfos []*schedulerframework.NodeInfo) []*apiv1.Node {
 		}
 	}
 	return result
+}
+
+// Isolate pods pods from its controllers, wait up to MaxWaitTimme to controllers to reach their capacity
+func isolatePodsFromController(pods []*apiv1.Pod) (err error) {
+  for _, pod := range pods {
+    controllerRef := metav1.GetControllerOf(pod)
+    if controllerRef != nil && controllerRef.Kind == "ReplicaSet" {
+      fmt.Printf("Lemme iterate %v \n", refKind)
+    }
+  }
 }
