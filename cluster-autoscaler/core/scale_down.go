@@ -1134,7 +1134,7 @@ func (sd *ScaleDown) deleteNode(node *apiv1.Node, pods []*apiv1.Pod, daemonSetPo
 	sd.context.Recorder.Eventf(node, apiv1.EventTypeNormal, "ScaleDown", "marked the node as toBeDeleted/unschedulable")
 
   // Isolate pods from their controller and wait for the impacted controllers to have desired capacity.
-  err := isolatePodsFromController(pods)
+  err := isolatePodsFromController(pods, sd.context.ClientSet, sd.context.Recorder)
 	// attempt drain
 	evictionResults, err := drainNode(node, pods, daemonSetPods, sd.context.ClientSet, sd.context.Recorder, sd.context.MaxGracefulTerminationSec, MaxPodEvictionTime, EvictionRetryTime, PodEvictionHeadroom)
 	if err != nil {
@@ -1370,12 +1370,25 @@ func filterOutMasters(nodeInfos []*schedulerframework.NodeInfo) []*apiv1.Node {
 	return result
 }
 
-// Isolate pods pods from its controllers, wait up to MaxWaitTimme to controllers to reach their capacity
-func isolatePodsFromController(pods []*apiv1.Pod) (err error) {
+// Isolate pods pods from its controllers, wait up to MaxWaitTime to controllers to be ready
+func isolatePodsFromController(pods []*apiv1.Pod, client kube_client.Interface, recorder kube_record.EventRecorder) (err error) {
   for _, pod := range pods {
-    controllerRef := metav1.GetControllerOf(pod)
-    if controllerRef != nil && controllerRef.Kind == "ReplicaSet" {
-      fmt.Printf("Lemme iterate %v \n", refKind)
-    }
+    isolatePod(pod, client, recorder)
   }
+}
+
+func isolatePod(podToIsolate *apiv1.Pod, client kube_client.Interface, recorder kube_record.EventRecorder) (err error) {
+  controllerRef := metav1.GetControllerOf(podToIsolate)
+  if controllerRef == nil || controllerRef.Kind != "ReplicaSet" {
+    return
+  }
+  recorder.Eventf(podToIsolate apiv1.EventTypeNormal, "ScaleDown", "isolating pod for node scale down")
+	var updateError error
+  pod, err := client.CoreV1().Pods().Get(context.TODO(), podToIsolate.Name, metav1.GetOptions{})
+  // change label
+  updateError = client.CoreV1().Pods(podToIsolate.Namespace).Update(ctx.TODO(), pod, metav1.UpdateOptions{})
+  if updateError == nil || kube_errors.IsNotFound(lastError) {
+    return
+  }
+	return Err: fmt.Errorf("failed to isolate pod %s/%s (last error: %v)", podToIsolate.Namespace, podToIsolate.Name, updateError)}
 }
