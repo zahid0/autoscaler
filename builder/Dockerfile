@@ -18,8 +18,9 @@ LABEL maintainer="Marcin Wielgus <mwielgus@google.com>"
 ENV GOPATH /gopath/
 ENV PATH $GOPATH/bin:$PATH
 
-RUN apt-get update && apt-get --yes install libseccomp-dev
+RUN apt-get update && apt-get --yes install libseccomp-dev vim
 RUN go version
 RUN go get github.com/tools/godep
+RUN go get github.com/go-delve/delve/cmd/dlv
 RUN godep version
 CMD ["/bin/bash"]
