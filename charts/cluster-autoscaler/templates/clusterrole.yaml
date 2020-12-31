@@ -39,6 +39,7 @@ rules:
       - ""
     resources:
       - nodes
+      - pods
     verbs:
     - watch
     - list
@@ -47,7 +48,6 @@ rules:
   - apiGroups:
     - ""
     resources:
-      - pods
       - services
       - replicationcontrollers
       - persistentvolumeclaims
